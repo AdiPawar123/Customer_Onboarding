@@ -53,7 +53,7 @@ public class UserService {
         User user = userRepository.findByUsername(username);
         if (user != null && passwordEncoder.matches(password, user.getPasswordHash())) {
             try{
-                emailService.sendLoginCongfirmation(user.getEmail());
+                emailService.sendEmail();
             }catch (Exception e){
                 e.printStackTrace();
             }
