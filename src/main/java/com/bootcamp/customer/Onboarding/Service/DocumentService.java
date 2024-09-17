@@ -142,6 +142,7 @@ public class DocumentService {
         Optional<Document> documentOpt = documentRepository.findByUserId(userId);
         if (documentOpt.isPresent()) {
             documentRepository.delete(documentOpt.get());
+
         } else {
             throw new ResourceNotFoundException("Document not found for userId: " + userId);
         }

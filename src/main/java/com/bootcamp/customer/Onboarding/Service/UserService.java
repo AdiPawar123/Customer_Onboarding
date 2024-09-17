@@ -3,12 +3,16 @@ package com.bootcamp.customer.Onboarding.Service;
 import com.bootcamp.customer.Onboarding.Repository.*;
 import com.bootcamp.customer.Onboarding.controller.DocumentController;
 import com.bootcamp.customer.Onboarding.exceptions.ValidationException;
+import com.bootcamp.customer.Onboarding.model.PlanDTO;
 import com.bootcamp.customer.Onboarding.model.Plans;
 import com.bootcamp.customer.Onboarding.model.User;
 import com.bootcamp.customer.Onboarding.model.UserDetailsDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -96,36 +100,31 @@ public class UserService {
 
     public UserDetailsDTO authenticate(String username, String password) {
         User user = userRepository.findByUsername(username);
-
-        Long planid=userPlansRepository.findPlanIdByUserId(user.getUserId());
-
-        Plans plans = plansRepository.findByPlanId(planid);
-        boolean doc_verified=documentRepository.isDocumentVerified(user.getUserId());
-        if (user != null && passwordEncoder.matches(password, user.getPasswordHash())) {
-            if(plans!=null){
-                return new UserDetailsDTO(
-                        user.getUsername(),
-                        user.getUsername(),
-                        user.getPhoneNumber(),
-                        user.getCustomerType(),
-                        plans.getPlan_name(),
-                        plans.getPlan_description(),
-                        plans.getPrice(),
-                        plans.getValidity_days(),
-                        doc_verified
-                );}
-            else{
-                return new UserDetailsDTO(
-                        user.getUsername(),
-                        user.getUsername(),
-                        user.getPhoneNumber(),
-                        user.getCustomerType(),
-                        doc_verified
-                );
-
+        if (user == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            return null;
+        }
+        // Fetch all plans associated with the user
+        List< Plans > plans = userPlansRepository.findPlansByUserId(user.getUserId());
+        List < PlanDTO > plansList = new ArrayList< >();
+        for (Plans plan: plans) {
+            if (plan != null) {
+                plansList.add(new PlanDTO(
+                        plan.getPlan_name(),
+                        plan.getPlan_description(),
+                        plan.getPrice(),
+                        plan.getValidity_days()
+                ));
             }
         }
-        return null;
+        boolean doc_verified = documentRepository.isDocumentVerified(user.getUserId());
+        return new UserDetailsDTO(
+                user.getUsername(),
+                user.getPhoneNumber(),
+                user.getCustomerType(),
+                plansList,
+                doc_verified,
+                user.getEmail()
+        );
     }
 
 
