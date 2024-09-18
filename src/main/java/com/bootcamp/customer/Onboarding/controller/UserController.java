@@ -43,6 +43,15 @@ public class UserController {
     public ResponseEntity<?> loginUser(@RequestParam String username, @RequestParam String password) {
         User user = userService.loginUser(username, password);
         if (user != null) {
+            return new ResponseEntity<>(user, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>("Invalid username or password", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    /*public ResponseEntity<?> loginUser(@RequestParam String username, @RequestParam String password) {
+        User user = userService.loginUser(username, password);
+        if (user != null) {
             Map<String, Object> response = new HashMap<>();
             response.put("userId", user.getUserId());
             response.put("username", user.getUsername());
@@ -51,10 +60,12 @@ public class UserController {
         } else {
             return new ResponseEntity<>("Invalid username or password", HttpStatus.UNAUTHORIZED);
         }
-    }
+    }*/
 
     @PostMapping("/update-password")
-    public ResponseEntity<String> updatePassword(@RequestParam String username) {
+    public ResponseEntity<String> updatePassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        System.out.println("Received username: " + username);
 
         boolean otp = userService.sendOtp(username);
 
@@ -66,7 +77,9 @@ public class UserController {
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyOtp(@RequestParam String email, @RequestParam String otp){
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request){
+        String email = request.get("email");
+        String otp = request.get("otp");
         boolean isValid = otpService.verifyOtp(email, otp);
         if (isValid) {
             return new ResponseEntity<>("OTP verified successfully", HttpStatus.OK);
@@ -76,7 +89,10 @@ public class UserController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<String> updatePassword(@RequestParam String username, @RequestParam String newPassword) {
+    public ResponseEntity<String> changePassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String newPassword = request.get("password");
+
         boolean isUpdated = userService.updatePassword(username, newPassword);
         if (isUpdated) {
             return new ResponseEntity<>("Password updated successfully", HttpStatus.OK);
@@ -86,7 +102,7 @@ public class UserController {
     }
 
     @PostMapping("/profile")
-    public ResponseEntity<UserDetailsDTO> profileUser(@RequestBody Map<String, String> loginRequest) {
+    public @ResponseBody ResponseEntity<UserDetailsDTO> profileUser(@RequestBody Map<String, String> loginRequest) {
         String username = loginRequest.get("username");
         String password = loginRequest.get("password");
 
