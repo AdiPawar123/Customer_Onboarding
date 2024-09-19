@@ -1,4 +1,4 @@
-/*
+
 package com.bootcamp.customer.Onboarding.service;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -133,4 +133,6 @@ public class OtpServiceTest {
         assertEquals(6, otp.length());
     }
 }
-*/
+
+
+

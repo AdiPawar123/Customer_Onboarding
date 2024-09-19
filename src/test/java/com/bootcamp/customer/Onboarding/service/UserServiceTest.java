@@ -1,160 +1,171 @@
-/*
+
 package com.bootcamp.customer.Onboarding.service;
+
 
 import com.bootcamp.customer.Onboarding.Repository.*;
 import com.bootcamp.customer.Onboarding.Service.EmailService;
 import com.bootcamp.customer.Onboarding.Service.OtpService;
 import com.bootcamp.customer.Onboarding.Service.UserService;
 import com.bootcamp.customer.Onboarding.exceptions.ValidationException;
-import com.bootcamp.customer.Onboarding.model.Plans;
-import com.bootcamp.customer.Onboarding.model.User;
-import com.bootcamp.customer.Onboarding.model.UserDetailsDTO;
+import com.bootcamp.customer.Onboarding.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-public class UserServiceTest {
+class UserServiceTest {
 
-    @Autowired
+    @InjectMocks
     private UserService userService;
 
-    @MockBean
+    @Mock
     private UserRepository userRepository;
 
-    @MockBean
+    @Mock
     private PasswordEncoder passwordEncoder;
 
-    @MockBean
+    @Mock
     private CustomerTypeRepository customerTypeRepository;
 
-    @MockBean
+    @Mock
     private UserPlansRepository userPlansRepository;
 
-    @MockBean
+    @Mock
     private PlansRepository plansRepository;
 
-    @MockBean
-    private EmailService emailService;
-
-    @MockBean
+    @Mock
     private DocumentRepository documentRepository;
 
-    @MockBean
+    @Mock
+    private EmailService emailService;
+
+    @Mock
     private OtpService otpService;
 
-    private User testUser;
+    private User user;
 
     @BeforeEach
-    public void setUp() {
-        testUser = new User(1L, "testuser", "encodedPassword", "test@example.com", "1234567890", 1, null, null);
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        user = new User();
+        user.setUserId(1L);
+        user.setUsername("testUser");
+        user.setEmail("test@example.com");
+        user.setPhoneNumber("1234567890");
+        user.setCustomerType(1);
     }
 
     @Test
-    public void testRegisterUserSuccess() {
-        when(userRepository.findByEmail(anyString())).thenReturn(null);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(userRepository.save(any(User.class))).thenReturn(testUser);
+    void registerUser_shouldSaveUser() {
+        when(passwordEncoder.encode("password")).thenReturn("hashedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(user);
 
-        User result = userService.registerUser("testuser", "password", "test@example.com", "1234567890", 1);
-        assertNotNull(result);
-        assertEquals("testuser", result.getUsername());
+        User registeredUser = userService.registerUser("testUser", "password", "test@example.com", "1234567890", 1);
+
+        assertNotNull(registeredUser);
+        assertEquals("testUser", registeredUser.getUsername());
+        verify(userRepository, times(1)).save(any(User.class));
+        verify(emailService, times(1)).sendEmail("test@example.com", "testUser");
     }
 
     @Test
-    public void testRegisterUserFailure() {
-        // Mocking the userRepository to return a non-null user indicating the user already exists
-        when(userRepository.findByEmail(anyString())).thenReturn(testUser);
-
-        // Verify that ValidationException is thrown when trying to register a user that already exists
-        ValidationException thrown = assertThrows(ValidationException.class, () -> {
-            userService.registerUser("testuser", "password", "test@example.com", "1234567890", 1);
+    void registerUser_usernameIsNull_shouldThrowException() {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            userService.registerUser(null, "password", "test@example.com", "1234567890", 1);
         });
-
-        assertEquals("User already exists", thrown.getMessage());
-    }
-
-
-    @Test
-    public void testLoginUserSuccess() {
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-
-        User result = userService.loginUser("testuser", "password");
-        assertNotNull(result);
-        assertEquals("testuser", result.getUsername());
+        assertEquals("Username is required", exception.getMessage());
     }
 
     @Test
-    public void testLoginUserFailure() {
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+    void loginUser_shouldReturnUser() {
+        when(userRepository.findByUsername("testUser")).thenReturn(user);
+        when(passwordEncoder.matches("password", user.getPasswordHash())).thenReturn(true);
 
-        User result = userService.loginUser("testuser", "wrongpassword");
-        assertNull(result);
+        User loggedInUser = userService.loginUser("testUser", "password");
+
+        assertNotNull(loggedInUser);
+        assertEquals("testUser", loggedInUser.getUsername());
     }
 
     @Test
-    public void testUpdatePasswordSuccess() {
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        when(passwordEncoder.encode(anyString())).thenReturn("newEncodedPassword");
-        when(userRepository.save(any(User.class))).thenReturn(testUser);
+    void loginUser_invalidPassword_shouldReturnNull() {
+        when(userRepository.findByUsername("testUser")).thenReturn(user);
+        when(passwordEncoder.matches("wrongPassword", user.getPasswordHash())).thenReturn(false);
 
-        boolean result = userService.updatePassword("testuser", "oldpassword", "newpassword");
+        User loggedInUser = userService.loginUser("testUser", "wrongPassword");
+
+        assertNull(loggedInUser);
+    }
+
+    @Test
+    void checkIfUserExists_shouldReturnTrue() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(user);
+
+        boolean exists = userService.checkIfUSerExists("test@example.com");
+
+        assertTrue(exists);
+    }
+
+    @Test
+    void sendOtp_shouldReturnTrue() {
+        when(userRepository.findByUsername("testUser")).thenReturn(user);
+
+        boolean result = userService.sendOtp("testUser");
+
         assertTrue(result);
+        verify(otpService, times(1)).generateAndSendOtp("test@example.com", "testUser");
     }
 
     @Test
-    public void testUpdatePasswordFailure() {
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+    void updatePassword_shouldReturnTrue() {
+        when(userRepository.findByUsername("testUser")).thenReturn(user);
+        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(passwordEncoder.encode("newPassword")).thenReturn("hashedNewPassword");
 
-        boolean result = userService.updatePassword("testuser", "wrongoldpassword", "newpassword");
+        boolean result = userService.updatePassword("testUser", "newPassword");
+
+        assertTrue(result);
+        assertEquals("hashedNewPassword", user.getPasswordHash());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    void updatePassword_userNotFound_shouldReturnFalse() {
+        when(userRepository.findByUsername("testUser")).thenReturn(null);
+
+        boolean result = userService.updatePassword("testUser", "newPassword");
+
         assertFalse(result);
     }
 
     @Test
-    public void testAuthenticateSuccessWithPlans() {
-        Long planId = 1L;
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        when(userPlansRepository.findPlanIdByUserId(anyLong())).thenReturn(planId);
-        when(plansRepository.findByPlanId(anyLong())).thenReturn(new Plans(1L, "Plan Name", "Plan Description", 100.0, 30, null));
-        when(documentRepository.isDocumentVerified(anyLong())).thenReturn(true);
+    void authenticate_shouldReturnUserDetailsDTO() {
+        when(userRepository.findByUsername("testUser")).thenReturn(user);
+        when(passwordEncoder.matches("password", user.getPasswordHash())).thenReturn(true);
+        when(userPlansRepository.findPlansByUserId(1L)).thenReturn(List.of(new Plans()));
+        when(documentRepository.isDocumentVerified(1L)).thenReturn(true); // Mock document verification
 
-        UserDetailsDTO result = userService.authenticate("testuser", "password");
-        assertNotNull(result);
-        assertEquals("Plan Name", result.getPlan_name());
+        UserDetailsDTO userDetails = userService.authenticate("testUser", "password");
+
+        assertNotNull(userDetails);
+        assertEquals("testUser", userDetails.getUsername());
     }
 
     @Test
-    public void testAuthenticateSuccessWithoutPlans() {
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        when(userPlansRepository.findPlanIdByUserId(anyLong())).thenReturn(null);
-        when(documentRepository.isDocumentVerified(anyLong())).thenReturn(true);
+    void authenticate_invalidUser_shouldReturnNull() {
+        when(userRepository.findByUsername("testUser")).thenReturn(null);
 
-        UserDetailsDTO result = userService.authenticate("testuser", "password");
-        assertNotNull(result);
-        assertNull(result.getPlan_name());
-    }
+        UserDetailsDTO userDetails = userService.authenticate("testUser", "wrongPassword");
 
-    @Test
-    public void testAuthenticateFailure() {
-        when(userRepository.findByUsername(anyString())).thenReturn(testUser);
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
-
-        UserDetailsDTO result = userService.authenticate("testuser", "wrongpassword");
-        assertNull(result);
+        assertNull(userDetails);
     }
 }
-*/

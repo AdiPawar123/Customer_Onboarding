@@ -9,6 +9,10 @@ public class UserDetailsDTO {
     private int customerType;
     private String email;
 
+    public UserDetailsDTO() {
+
+    }
+
     public String getEmail() {
         return email;
     }

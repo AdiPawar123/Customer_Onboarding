@@ -1,4 +1,4 @@
-/*
+
 package com.bootcamp.customer.Onboarding.service;
 
 
@@ -16,16 +16,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
-public class UserPlansServiceTest {
+class UserPlansServiceTest {
+
+    @InjectMocks
+    private UserPlansService userPlansService;
 
     @Mock
     private UserPlansRepository userPlansRepository;
@@ -39,103 +41,82 @@ public class UserPlansServiceTest {
     @Mock
     private NotificationService notificationService;
 
-    @InjectMocks
-    private UserPlansService userPlansService;
+    private User user;
+    private Plans plan;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        user = new User();
+        user.setUserId(1L);
+        plan = new Plans();
+        plan.setPlan_id(1L);
+        plan.setValidity_days(30);
     }
 
     @Test
-    void testAddPlansToUser() {
-        Long userId = 1L;
-        List<Long> planIds = List.of(1L, 2L);
-        User user = new User();
-        Plans plan1 = new Plans();
-        Plans plan2 = new Plans();
+    void addPlansToUser_shouldSaveUserPlans() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(plansRepository.findById(1L)).thenReturn(Optional.of(plan));
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(plansRepository.findById(1L)).thenReturn(Optional.of(plan1));
-        when(plansRepository.findById(2L)).thenReturn(Optional.of(plan2));
+        userPlansService.addPlansToUser(1L, Arrays.asList(1L));
 
-        userPlansService.addPlansToUser(userId, planIds);
-
-        verify(userPlansRepository, times(2)).save(any(UserPlans.class));
+        verify(userPlansRepository, times(1)).save(any(UserPlans.class));
     }
 
     @Test
-    void testAddPlanToUser() {
-        Long userId = 1L;
-        Long planId = 1L;
-        User user = new User();
-        Plans plan = new Plans();
+    void addPlanToUser_shouldSaveUserPlanAndCreateNotification() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(plansRepository.findById(1L)).thenReturn(Optional.of(plan));
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(plansRepository.findById(planId)).thenReturn(Optional.of(plan));
+        userPlansService.addPlanToUser(1L, 1L);
 
-        userPlansService.addPlanToUser(userId, planId);
+        verify(userPlansRepository, times(1)).save(any(UserPlans.class));
 
-        verify(userPlansRepository).save(any(UserPlans.class));
-        verify(notificationService).createNotification(userId, planId);
+        verify(notificationService, times(1)).createNotification(1L, 1L); // Verify notification service call
     }
 
     @Test
-    void testGetUserPlans() {
-        Long userId = 1L;
-        User user = new User();
-        UserPlans userPlans = new UserPlans();
+    void addPlansToUser_userNotFound_shouldThrowException() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userPlansRepository.findByUser(user)).thenReturn(userPlans);
-
-        UserPlans result = userPlansService.getUserPlans(userId);
-
-        assertEquals(userPlans, result);
-    }
-
-    @Test
-    void testAddPlansToUser_UserNotFound() {
-        Long userId = 1L;
-        List<Long> planIds = List.of(1L, 2L);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
-            userPlansService.addPlansToUser(userId, planIds);
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            userPlansService.addPlansToUser(1L, Arrays.asList(1L));
         });
 
-        assertEquals("User Not Found", thrown.getMessage());
+        assertEquals("User Not Found", exception.getMessage());
     }
 
     @Test
-    void testAddPlanToUser_UserNotFound() {
-        Long userId = 1L;
-        Long planId = 1L;
+    void addPlanToUser_planNotFound_shouldThrowException() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(plansRepository.findById(1L)).thenReturn(Optional.empty());
 
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
-            userPlansService.addPlanToUser(userId, planId);
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            userPlansService.addPlanToUser(1L, 1L);
         });
 
-        assertEquals("User Not Found", thrown.getMessage());
+        assertEquals("Plan not found", exception.getMessage());
     }
 
     @Test
-    void testAddPlanToUser_PlanNotFound() {
-        Long userId = 1L;
-        Long planId = 1L;
-        User user = new User();
+    void getUserPlans_shouldReturnUserPlans() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userPlansRepository.findByUser(user)).thenReturn(Optional.of(new UserPlans()));
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(plansRepository.findById(planId)).thenReturn(Optional.empty());
+        Optional<UserPlans> result = userPlansService.getUserPlans(1L);
 
-        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
-            userPlansService.addPlanToUser(userId, planId);
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    void getUserPlans_userNotFound_shouldThrowException() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            userPlansService.getUserPlans(1L);
         });
 
-        assertEquals("Plan not found", thrown.getMessage());
+        assertEquals("User Not Found", exception.getMessage());
     }
 }
-*/
