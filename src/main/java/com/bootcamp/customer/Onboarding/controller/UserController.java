@@ -91,7 +91,7 @@ public class UserController {
     @PostMapping("/change-password")
     public ResponseEntity<String> changePassword(@RequestBody Map<String, String> request) {
         String username = request.get("username");
-        String newPassword = request.get("password");
+        String newPassword = request.get("newPassword");
 
         boolean isUpdated = userService.updatePassword(username, newPassword);
         if (isUpdated) {
